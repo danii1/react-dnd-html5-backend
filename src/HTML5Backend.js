@@ -450,6 +450,11 @@ export default class HTML5Backend {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
     }
+
+    // iTunes weird stuff
+    e.stopPropagation();
+    if (this.isDraggingNativeItem()) e.dataTransfer.dropEffect = 'copy';
+    return false;
   }
 
   handleTopDragLeaveCapture(e) {
