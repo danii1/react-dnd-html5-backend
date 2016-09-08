@@ -35,7 +35,10 @@ export default class HTML5Backend {
   }
 
   setup() {
-    if (typeof window === 'undefined') {
+    // We can set this field on window to enable backend to use a customized window service
+    this.windowService = window.__ReactDndHTML5BackendWindow ? window.__ReactDndHTML5BackendWindow : window;
+
+    if (typeof this.windowService === 'undefined') {
       return;
     }
 
@@ -43,16 +46,16 @@ export default class HTML5Backend {
       throw new Error('Cannot have two HTML5 backends at the same time.');
     }
     this.constructor.isSetUp = true;
-    this.addEventListeners(window);
+    this.addEventListeners(this.windowService);
   }
 
   teardown() {
-    if (typeof window === 'undefined') {
+    if (typeof this.windowService === 'undefined') {
       return;
     }
 
     this.constructor.isSetUp = false;
-    this.removeEventListeners(window);
+    this.removeEventListeners(this.windowService);
     this.clearCurrentDragSourceNode();
   }
 
@@ -209,7 +212,7 @@ export default class HTML5Backend {
     // Receiving a mouse event in the middle of a dragging operation
     // means it has ended and the drag source node disappeared from DOM,
     // so the browser didn't dispatch the dragend event.
-    window.addEventListener('mousemove', this.endDragIfSourceWasRemovedFromDOM, true);
+    this.windowService.addEventListener('mousemove', this.endDragIfSourceWasRemovedFromDOM, true);
   }
 
   clearCurrentDragSourceNode() {
@@ -217,7 +220,7 @@ export default class HTML5Backend {
       this.currentDragSourceNode = null;
       this.currentDragSourceNodeOffset = null;
       this.currentDragSourceNodeOffsetChanged = false;
-      window.removeEventListener('mousemove', this.endDragIfSourceWasRemovedFromDOM, true);
+      this.windowService.removeEventListener('mousemove', this.endDragIfSourceWasRemovedFromDOM, true);
       return true;
     }
 
