@@ -268,7 +268,15 @@ export default class HTML5Backend {
     });
 
     const { dataTransfer } = e;
-    const nativeType = matchNativeItemType(dataTransfer);
+    let nativeType = null;
+    // Dragging from firefox will sometimes make its dataTransfer object un-readable
+    try {
+      nativeType = matchNativeItemType(dataTransfer);
+    } catch (err) {
+      // If it's not readable, we just let it drag. Because we assume that
+      // it is a native type and will be picked up in dragenter handler.
+      return;
+    }
 
     if (this.monitor.isDragging()) {
       if (typeof dataTransfer.setDragImage === 'function') {
