@@ -492,6 +492,11 @@ export default class HTML5Backend {
     const { dropTargetIds } = this;
     this.dropTargetIds = [];
 
+    // Avoid crashing if we are not dragging anything
+    if (!this.monitor.isDragging()) {
+      return;
+    }
+
     this.actions.hover(dropTargetIds, {
       clientOffset: getEventClientOffset(e)
     });
