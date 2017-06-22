@@ -460,10 +460,30 @@ export default class HTML5Backend {
 
   handleTopDragLeaveCapture(e) {
     if (this.isDraggingNativeItem()) {
-      e.preventDefault();
+      // ##FirefoxPermissionDenied
+      // In Firefox sometimes preventDefault is not accessible on e. This adds
+      // temporary logging so hopefully we will learn more about this error.
+      // https://app.asana.com/0/1149204378422/334924376407244
+      try {
+        e.preventDefault();
+      } catch (err) {
+        host && host.recordWarning && host.recordWarning( // eslint-disable-line
+          'Error when trying to access e.preventDefault in handleTopDragLeaveCapture',
+          this.monitor.getItemType()
+        );
+      }
     }
 
-    const isLastLeave = this.enterLeaveCounter.leave(e.target);
+    let isLastLeave = false;
+    // #FirefoxPermissionDenied
+    try {
+      isLastLeave = this.enterLeaveCounter.leave(e.target);
+    } catch (err) {
+      host && host.recordWarning && host.recordWarning( // eslint-disable-line
+        'Error when trying to access e.target in handleTopDragLeaveCapture',
+        this.monitor.getItemType()
+      );
+    }
     if (!isLastLeave) {
       return;
     }
