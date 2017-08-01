@@ -11,6 +11,7 @@ export default class HTML5Backend {
     this.actions = manager.getActions();
     this.monitor = manager.getMonitor();
     this.registry = manager.getRegistry();
+    this.context = manager.getContext();
 
     this.sourcePreviewNodes = {};
     this.sourcePreviewNodeOptions = {};
@@ -34,25 +35,29 @@ export default class HTML5Backend {
     this.endDragNativeItem = this.endDragNativeItem.bind(this);
   }
 
+  get window() {
+    return (this.context && this.context.window) || window;
+  }
+
   setup() {
-    if (typeof window === 'undefined') {
+    if (typeof this.window === 'undefined') {
       return;
     }
 
-    if (this.constructor.isSetUp) {
+    if (this.window.__isReactDndBackendSetUp) { // eslint-disable-line no-underscore-dangle
       throw new Error('Cannot have two HTML5 backends at the same time.');
     }
-    this.constructor.isSetUp = true;
-    this.addEventListeners(window);
+    this.window.__isReactDndBackendSetUp = true; // eslint-disable-line no-underscore-dangle
+    this.addEventListeners(this.window);
   }
 
   teardown() {
-    if (typeof window === 'undefined') {
+    if (typeof this.window === 'undefined') {
       return;
     }
 
-    this.constructor.isSetUp = false;
-    this.removeEventListeners(window);
+    this.window.__isReactDndBackendSetUp = false; // eslint-disable-line no-underscore-dangle
+    this.removeEventListeners(this.window);
     this.clearCurrentDragSourceNode();
   }
 
@@ -96,8 +101,8 @@ export default class HTML5Backend {
     this.sourceNodes[sourceId] = node;
     this.sourceNodeOptions[sourceId] = options;
 
-    const handleDragStart = (e) => this.handleDragStart(e, sourceId);
-    const handleSelectStart = (e) => this.handleSelectStart(e, sourceId);
+    const handleDragStart = e => this.handleDragStart(e, sourceId);
+    const handleSelectStart = e => this.handleSelectStart(e, sourceId);
 
     node.setAttribute('draggable', true);
     node.addEventListener('dragstart', handleDragStart);
@@ -114,9 +119,9 @@ export default class HTML5Backend {
   }
 
   connectDropTarget(targetId, node) {
-    const handleDragEnter = (e) => this.handleDragEnter(e, targetId);
-    const handleDragOver = (e) => this.handleDragOver(e, targetId);
-    const handleDrop = (e) => this.handleDrop(e, targetId);
+    const handleDragEnter = e => this.handleDragEnter(e, targetId);
+    const handleDragOver = e => this.handleDragOver(e, targetId);
+    const handleDrop = e => this.handleDrop(e, targetId);
 
     node.addEventListener('dragenter', handleDragEnter);
     node.addEventListener('dragover', handleDragOver);
@@ -134,7 +139,7 @@ export default class HTML5Backend {
     const sourceNodeOptions = this.sourceNodeOptions[sourceId];
 
     return defaults(sourceNodeOptions || {}, {
-      dropEffect: 'move'
+      dropEffect: 'move',
     });
   }
 
@@ -154,7 +159,7 @@ export default class HTML5Backend {
     return defaults(sourcePreviewNodeOptions || {}, {
       anchorX: 0.5,
       anchorY: 0.5,
-      captureDraggingState: false
+      captureDraggingState: false,
     });
   }
 
@@ -165,7 +170,7 @@ export default class HTML5Backend {
   isDraggingNativeItem() {
     const itemType = this.monitor.getItemType();
     return Object.keys(NativeTypes).some(
-      key => NativeTypes[key] === itemType
+      key => NativeTypes[key] === itemType,
     );
   }
 
@@ -180,7 +185,7 @@ export default class HTML5Backend {
     // On Firefox, if mousemove fires, the drag is over but browser failed to tell us.
     // This is not true for other browsers.
     if (isFirefox()) {
-      window.addEventListener('mousemove', this.endDragNativeItem, true);
+      this.window.addEventListener('mousemove', this.endDragNativeItem, true);
     }
   }
 
@@ -190,7 +195,7 @@ export default class HTML5Backend {
     }
 
     if (isFirefox()) {
-      window.removeEventListener('mousemove', this.endDragNativeItem, true);
+      this.window.removeEventListener('mousemove', this.endDragNativeItem, true);
     }
 
     this.actions.endDrag();
@@ -219,7 +224,7 @@ export default class HTML5Backend {
     // Receiving a mouse event in the middle of a dragging operation
     // means it has ended and the drag source node disappeared from DOM,
     // so the browser didn't dispatch the dragend event.
-    window.addEventListener('mousemove', this.endDragIfSourceWasRemovedFromDOM, true);
+    this.window.addEventListener('mousemove', this.endDragIfSourceWasRemovedFromDOM, true);
   }
 
   clearCurrentDragSourceNode() {
@@ -227,7 +232,7 @@ export default class HTML5Backend {
       this.currentDragSourceNode = null;
       this.currentDragSourceNodeOffset = null;
       this.currentDragSourceNodeOffsetChanged = false;
-      window.removeEventListener('mousemove', this.endDragIfSourceWasRemovedFromDOM, true);
+      this.window.removeEventListener('mousemove', this.endDragIfSourceWasRemovedFromDOM, true);
       return true;
     }
 
@@ -246,7 +251,7 @@ export default class HTML5Backend {
 
     this.currentDragSourceNodeOffsetChanged = !shallowEqual(
       getNodeClientOffset(node),
-      this.currentDragSourceNodeOffset
+      this.currentDragSourceNodeOffset,
     );
 
     return this.currentDragSourceNodeOffsetChanged;
@@ -271,7 +276,7 @@ export default class HTML5Backend {
     this.actions.beginDrag(dragStartSourceIds, {
       publishSource: false,
       getSourceClientOffset: this.getSourceClientOffset,
-      clientOffset
+      clientOffset,
     });
 
     const { dataTransfer } = e;
@@ -291,7 +296,7 @@ export default class HTML5Backend {
           sourceNode,
           dragPreview,
           clientOffset,
-          anchorPoint
+          anchorPoint,
         );
         dataTransfer.setDragImage(dragPreview, dragPreviewOffset.x, dragPreviewOffset.y);
       }
@@ -339,8 +344,9 @@ export default class HTML5Backend {
       )
     ) {
       // Looks like a Safari bug: dataTransfer.types is null, but there was no draggable.
-      // Just let it drag. It's a native type (URL or text) and will be picked up in dragenter handler.
-      return;
+      // Just let it drag. It's a native type (URL or text) and will be picked up in
+      // dragenter handler.
+      return; // eslint-disable-line no-useless-return
     } else {
       // If by this time no drag source reacted, tell browser not to drag.
       e.preventDefault();
@@ -392,12 +398,12 @@ export default class HTML5Backend {
       // will still happily dispatch `dragover` despite target being no longer
       // there. The easy solution is to only fire `hover` in `dragover` on FF.
       this.actions.hover(dragEnterTargetIds, {
-        clientOffset: getEventClientOffset(e)
+        clientOffset: getEventClientOffset(e),
       });
     }
 
     const canDrop = dragEnterTargetIds.some(
-      targetId => this.monitor.canDropOnTarget(targetId)
+      targetId => this.monitor.canDropOnTarget(targetId),
     );
 
     if (canDrop) {
@@ -428,11 +434,11 @@ export default class HTML5Backend {
     }
 
     this.actions.hover(dragOverTargetIds, {
-      clientOffset: getEventClientOffset(e)
+      clientOffset: getEventClientOffset(e),
     });
 
     const canDrop = dragOverTargetIds.some(
-      targetId => this.monitor.canDropOnTarget(targetId)
+      targetId => this.monitor.canDropOnTarget(targetId),
     );
 
     if (canDrop) {
@@ -492,7 +498,7 @@ export default class HTML5Backend {
     this.dropTargetIds = [];
 
     this.actions.hover(dropTargetIds, {
-      clientOffset: getEventClientOffset(e)
+      clientOffset: getEventClientOffset(e),
     });
     this.actions.drop();
 
